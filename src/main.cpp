@@ -34,6 +34,22 @@ Kóðasöfn sem þarf:
 #include <RTClib.h> // Lib fyrir real time clock
 #include <SPI.h>
 
+// Föll
+float voltage_monitor;
+
+
+
+// Fall til að fylgjast með Vin
+/*
+float voltage_monitor(spenna)
+{
+uint16_t spenna;
+
+return spenna;
+}*/
+
+
+
 //Uppsetningarfall
 void setup()
 {
