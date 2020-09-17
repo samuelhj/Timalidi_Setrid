@@ -4,6 +4,8 @@
   Hlutverk: RTC rás heldur tímann og AVR sér um að "muna" hvenær sólarupprás
   hefst og hvenær sólsetur er. Kveikt er á útgöngum við Sólarupprás og slökkt
   c.a. 1 klst eftir sólsetur.
+  Að auki eru útgangar alltaf virkir ef hleðslutæki fyrir rafhlöður er í gangi.
+  Það er skoðað með að mæla relay á Victron Phoenix hleðslustýringu.
 
 RTC rásin er Chronodot v2.0 http://docs.macetech.com/doku.php/chronodot_v2.0
 
@@ -34,6 +36,19 @@ Kóðasöfn sem þarf:
 #include <RTClib.h> // Lib fyrir real time clock
 #include <SPI.h>
 
+// fastar
+// Q1-Q4 skilgreindir eftir digital pinnum á Arduino
+#define Q1 6
+#define Q2 7
+#define Q3 8
+#define Q4 9
+// HIGH er ON og LOW or OFF
+#define ON HIGH
+#define OFF LOW
+// global breytur
+
+
+
 // Föll
 float voltage_monitor;
 
@@ -53,6 +68,15 @@ return spenna;
 //Uppsetningarfall
 void setup()
 {
+
+//Digital pinnar 6-9 eru útgangar
+  pinMode(6, OUTPUT);
+  pinMode(7,OUTPUT);
+  pinMode(8,OUTPUT);
+  pinMode(9,OUTPUT);
+  pinMode(10,INPUT_PULLUP); // Inngangur til að athuga stöðu á hleðslutæki
+
+
   Wire.begin();
   Serial.begin(9600);
 
@@ -71,6 +95,25 @@ void setup()
 //Aðalfall
 void loop()
 {
+//Ef hleðslutæki er að hlaða þá kveikjum við á útgöngum
+if(10 == LOW)
+{
+  digitalWrite(Q1,ON);
+  digitalWrite(Q2,ON);
+  digitalWrite(Q3,ON);
+  digitalWrite(Q4,ON);
+}
+//Ef hleðslutæki er ekki að hlaða, þá slökkvum við.
+if(10 == HIGH)
+{
+  digitalWrite(Q1,OFF);
+  digitalWrite(Q2,OFF);
+  digitalWrite(Q3,OFF);
+  digitalWrite(Q4,OFF);  
+}
+
+
+// Debugging
 
   // send request to receive data starting at register 0
 Wire.beginTransmission(0x68); // 0x68 is DS3231 device address
