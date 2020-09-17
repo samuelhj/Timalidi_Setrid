@@ -35,6 +35,7 @@ Kóðasöfn sem þarf:
 #include <Arduino.h>
 #include <RTClib.h> // Lib fyrir real time clock
 #include <SPI.h>
+#include <avr/sleep.h> // svefn
 
 // fastar
 // Q1-Q4 skilgreindir eftir digital pinnum á Arduino
@@ -51,7 +52,7 @@ Kóðasöfn sem þarf:
 
 // Föll
 float voltage_monitor;
-
+void wakeUp();
 
 
 // Fall til að fylgjast með Vin
@@ -63,8 +64,14 @@ uint16_t spenna;
 return spenna;
 }*/
 
+// Fall til að vekja
 
-
+void wakeUp()
+{
+  //Serial.println("Interrupt fired!");
+  sleep_disable();
+  detachInterrupt(0);
+}
 //Uppsetningarfall
 void setup()
 {
@@ -75,7 +82,9 @@ void setup()
   pinMode(8,OUTPUT);
   pinMode(9,OUTPUT);
   pinMode(10,INPUT_PULLUP); // Inngangur til að athuga stöðu á hleðslutæki
-
+  pinMode(2,INPUT_PULLUP);
+  pinMode(13,OUTPUT); // fyrir Status LED
+  digitalWrite(13,HIGH);
 
   Wire.begin();
   Serial.begin(9600);
@@ -95,22 +104,43 @@ void setup()
 //Aðalfall
 void loop()
 {
-//Ef hleðslutæki er að hlaða þá kveikjum við á útgöngum
-if(10 == LOW)
-{
-  digitalWrite(Q1,ON);
-  digitalWrite(Q2,ON);
-  digitalWrite(Q3,ON);
-  digitalWrite(Q4,ON);
-}
-//Ef hleðslutæki er ekki að hlaða, þá slökkvum við.
-if(10 == HIGH)
-{
-  digitalWrite(Q1,OFF);
-  digitalWrite(Q2,OFF);
-  digitalWrite(Q3,OFF);
-  digitalWrite(Q4,OFF);  
-}
+
+  int relay = digitalRead(2); // breyta fyrir snertu frá Victron hleðslutækinu
+  // Ef Hleðslutækið er í gangi þá kveikjum við á myndavélunum.
+  if(relay == LOW)
+  {
+    digitalWrite(Q1,ON);
+    digitalWrite(Q2,ON);
+    digitalWrite(Q3,ON);
+    digitalWrite(Q4,ON);
+    digitalWrite(13,HIGH);
+    delay(500);
+    digitalWrite(13,LOW);
+    delay(500);
+  }
+  // Ef hleðslutækið slekkur á sér þá slökkvum við á myndavélum.
+  if(relay == HIGH)
+  {
+    digitalWrite(Q1,OFF);
+    digitalWrite(Q2,OFF);
+    digitalWrite(Q3,OFF);
+    digitalWrite(Q4,OFF);
+    digitalWrite(13,LOW);
+  }
+  // og förum aftur að sofa
+  set_sleep_mode (SLEEP_MODE_PWR_DOWN);
+  sleep_enable();
+
+  noInterrupts();
+  // will be called when pin D2 goes low
+  attachInterrupt (0, wakeUp, LOW);
+  EIFR = bit (INTF0);  // clear flag for interrupt 0
+
+  // We are guaranteed that the sleep_cpu call will be done
+  // as the processor executes the next instruction after
+  // interrupts are turned on.
+  interrupts ();  // one cycle
+  sleep_cpu ();   // one cycle
 
 
 // Debugging
@@ -134,7 +164,6 @@ while(Wire.available())
   Serial.print(hours); Serial.print(":"); Serial.print(minutes); Serial.print(":"); Serial.println(seconds);
 }
 
-delay(1000);
-
+delay(100);
 
 }
