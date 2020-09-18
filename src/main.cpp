@@ -72,8 +72,8 @@ int er_dagur()
 void wakeUp()
 {
   //Serial.println("Interrupt fired!");
-  sleep_disable();
-  detachInterrupt(0);
+  sleep_disable(); // Förum úr svefni 
+  detachInterrupt(0); // Aftengjum interrupt svo við lendum ekki í lúppu
 }
 //Uppsetningarfall
 void setup()
