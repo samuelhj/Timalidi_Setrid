@@ -34,38 +34,41 @@ Kóðasöfn sem þarf:
 #include <Wire.h>
 #include <Arduino.h>
 #include <RTClib.h> // Lib fyrir real time clock
-#include <SPI.h>
+#include <SPI.h> // SPI samskipti
 #include <avr/sleep.h> // svefn
 
 // fastar
 // Q1-Q4 skilgreindir eftir digital pinnum á Arduino
+// Þetta eru MOSFET rásir sem stýra jaðarbúnaði.
+
 #define Q1 6
 #define Q2 7
 #define Q3 8
 #define Q4 9
+
 // HIGH er ON og LOW or OFF
 #define ON HIGH
 #define OFF LOW
+
 // global breytur
-
-
+uint8_t manudur = 0; // gildi fyrir mánuðinn. 1 - 12
+uint8_t erdagur = 1; // Er dagur eða ekki? Notað til að ákveða hvort það sé kveikt
 
 // Föll
-float voltage_monitor;
+
 void wakeUp();
+int er_dagur();
 
-
-// Fall til að fylgjast með Vin
-/*
-float voltage_monitor(spenna)
+//Fall til að athuga hvort það sé dagur eða nótt
+int er_dagur()
 {
-uint16_t spenna;
+  uint8_t status = 0; // breyta fyrir útkomu, er dagur eða nótt?
 
-return spenna;
-}*/
+  // Þarf að vinna í þessu. Spurning með hvernig sé best að fá mánuðinn frá RTC?
 
+  return status; // Við skilum til baka ef það er dagur eða nótt
+}
 // Fall til að vekja
-
 void wakeUp()
 {
   //Serial.println("Interrupt fired!");
@@ -81,9 +84,9 @@ void setup()
   pinMode(7,OUTPUT);
   pinMode(8,OUTPUT);
   pinMode(9,OUTPUT);
-  pinMode(10,INPUT_PULLUP); // Inngangur til að athuga stöðu á hleðslutæki
-  pinMode(2,INPUT_PULLUP);
-  pinMode(13,OUTPUT); // fyrir Status LED
+  pinMode(10,OUTPUT); // Status díóða.
+  pinMode(2,INPUT_PULLUP); // Interrupt pinni til að athuga stöðu á hleðslutæki
+  pinMode(13,OUTPUT); // fyrir Status LED2
   digitalWrite(13,HIGH);
 
   Wire.begin();
@@ -106,8 +109,9 @@ void loop()
 {
 
   int relay = digitalRead(2); // breyta fyrir snertu frá Victron hleðslutækinu
-  // Ef Hleðslutækið er í gangi þá kveikjum við á myndavélunum.
-  if(relay == LOW)
+  // Ef Hleðslutækið er í gangi þá kveikjum við ALLTAF á myndavélunum.
+  // sem og ef það er dagur
+  if((relay == LOW) && (erdagur == 1))
   {
     digitalWrite(Q1,ON);
     digitalWrite(Q2,ON);
@@ -118,8 +122,9 @@ void loop()
     digitalWrite(13,LOW);
     delay(500);
   }
-  // Ef hleðslutækið slekkur á sér þá slökkvum við á myndavélum.
-  if(relay == HIGH)
+  // Ef hleðslutækið slekkur á sér þá slökkvum við á myndavélum sem og
+  // ef það er nótt.
+  if((relay == HIGH) && (erdagur == 0))
   {
     digitalWrite(Q1,OFF);
     digitalWrite(Q2,OFF);
@@ -141,6 +146,9 @@ void loop()
   // interrupts are turned on.
   interrupts ();  // one cycle
   sleep_cpu ();   // one cycle
+
+
+
 
 
 // Debugging
