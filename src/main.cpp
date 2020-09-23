@@ -16,10 +16,10 @@ Kóðasöfn sem þarf:
 
 
   Listi yfir sólarupprás og sólsetur og hvenær útgangar eru virkir.
-  Janúar    11:00 - 16:00
-  Febrúar   10:00 - 18:00
-  Mars      08:00 - 19:30
-  Apríl     06:00 - 21:00
+  Janúar    11:00 - 16:00 5 klst on
+  Febrúar   10:00 - 18:00 8 klst on
+  Mars      08:00 - 19:30 11,5klst on
+  Apríl     06:00 - 21:00 15 klst on
   Maí       04:00 - 22:30
   Júní      Alltaf kveikt
   Júlí      03:30 - 23:30   Alltaf kveikt
@@ -46,6 +46,14 @@ Kóðasöfn sem þarf:
 #define Q3 8
 #define Q4 9
 
+// Skilgreiningar fyrir Status LED
+#define STATUS_LED_GREEN 4
+#define STATUS_LED_RED 5
+
+// pinnar fyrir external interrupt 
+#define INTERRUPT0 2
+#define INTERRUPT1 3
+
 // HIGH er ON og LOW or OFF
 #define ON HIGH
 #define OFF LOW
@@ -53,11 +61,28 @@ Kóðasöfn sem þarf:
 // global breytur
 uint8_t manudur = 0; // gildi fyrir mánuðinn. 1 - 12
 uint8_t erdagur = 1; // Er dagur eða ekki? Notað til að ákveða hvort það sé kveikt
+uint16_t hours; // Breyta fyrir klukkustundir
+uint16_t minutes; // Breyta fyrir Mínútur
+uint16_t seconds; // Breyta fyrir sekúndur
 
 // Föll
 
 void wakeUp();
 int er_dagur();
+void er_hadegi();
+
+//Fall til að athuga hvort það sé hádegi. Til að byrja með ætlum við bara að kveikja á útgöngum
+// Þegar það er hádegi, síðar meir verður breytt yfir í dagatal þegar sólarsellan er kominn
+// á sinn stað
+void er_hadegi()
+{
+  // ef kl er 12
+  if((hours == 12) && (minutes == 0))
+  {
+    digitalWrite(13,ON);
+  }
+
+}
 
 //Fall til að athuga hvort það sé dagur eða nótt
 int er_dagur()
@@ -72,7 +97,7 @@ int er_dagur()
 void wakeUp()
 {
   //Serial.println("Interrupt fired!");
-  sleep_disable(); // Förum úr svefni 
+  sleep_disable(); // Förum úr svefni
   detachInterrupt(0); // Aftengjum interrupt svo við lendum ekki í lúppu
 }
 //Uppsetningarfall
@@ -80,11 +105,13 @@ void setup()
 {
 
 //Digital pinnar 6-9 eru útgangar
-  pinMode(6, OUTPUT);
-  pinMode(7,OUTPUT);
-  pinMode(8,OUTPUT);
-  pinMode(9,OUTPUT);
-  pinMode(10,OUTPUT); // Status díóða.
+  pinMode(STATUS_LED_GREEN,OUTPUT); // Status LED
+  pinMode(STATUS_LED_RED,OUTPUT); // Status LED
+  pinMode(Q1, OUTPUT); //
+  pinMode(Q2,OUTPUT);
+  pinMode(Q3,OUTPUT);
+  pinMode(Q4,OUTPUT);
+  pinMode(10,OUTPUT); // Status díóða fyrir test (Þetta verður fjarlægt)
   pinMode(2,INPUT_PULLUP); // Interrupt pinni til að athuga stöðu á hleðslutæki
   pinMode(13,OUTPUT); // fyrir Status LED2
   digitalWrite(13,HIGH);
@@ -147,10 +174,6 @@ void loop()
   interrupts ();  // one cycle
   sleep_cpu ();   // one cycle
 
-
-
-
-
 // Debugging
 
   // send request to receive data starting at register 0
@@ -161,15 +184,18 @@ Wire.requestFrom(0x68, 3); // request three bytes (seconds, minutes, hours)
 
 while(Wire.available())
 {
-  int seconds = Wire.read(); // get seconds
-  int minutes = Wire.read(); // get minutes
-  int hours = Wire.read();   // get hours
+  seconds = Wire.read(); // get seconds
+  minutes = Wire.read(); // get minutes
+  hours = Wire.read();   // get hours
 
   seconds = (((seconds & 0b11110000)>>4)*10 + (seconds & 0b00001111)); // convert BCD to decimal
   minutes = (((minutes & 0b11110000)>>4)*10 + (minutes & 0b00001111)); // convert BCD to decimal
   hours = (((hours & 0b00100000)>>5)*20 + ((hours & 0b00010000)>>4)*10 + (hours & 0b00001111)); // convert BCD to decimal (assume 24 hour mode)
 
   Serial.print(hours); Serial.print(":"); Serial.print(minutes); Serial.print(":"); Serial.println(seconds);
+
+  // Er hádegi?
+  er_hadegi();
 }
 
 delay(100);
