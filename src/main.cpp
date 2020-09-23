@@ -50,7 +50,7 @@ Kóðasöfn sem þarf:
 #define STATUS_LED_GREEN 4
 #define STATUS_LED_RED 5
 
-// pinnar fyrir external interrupt 
+// pinnar fyrir external interrupt
 #define INTERRUPT0 2
 #define INTERRUPT1 3
 
@@ -112,7 +112,8 @@ void setup()
   pinMode(Q3,OUTPUT);
   pinMode(Q4,OUTPUT);
   pinMode(10,OUTPUT); // Status díóða fyrir test (Þetta verður fjarlægt)
-  pinMode(2,INPUT_PULLUP); // Interrupt pinni til að athuga stöðu á hleðslutæki
+  pinMode(INTERRUPT0,INPUT_PULLUP); // Interrupt pinni til að athuga stöðu á hleðslutæki
+  pinMode(INTERRUPT1,INPUT_PULLUP); // Interrupt pinni 2. Ónotað en hugsað til framtíðar.
   pinMode(13,OUTPUT); // fyrir Status LED2
   digitalWrite(13,HIGH);
 
