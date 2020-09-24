@@ -60,12 +60,13 @@ Kóðasöfn sem þarf:
 
 // global breytur
 uint8_t manudur = 0; // gildi fyrir mánuðinn. 1 - 12
-uint8_t erdagur = 1; // Er dagur eða ekki? Notað til að ákveða hvort það sé kveikt
+uint8_t erdagur = 0; // Er dagur eða ekki? Notað til að ákveða hvort það sé kveikt
 uint16_t keyrslutimi = 600; // Breyta fyrir hve lengi við keyrum, í sekúndum
 uint16_t hours; // Breyta fyrir klukkustundir
 uint16_t minutes; // Breyta fyrir Mínútur
 uint16_t seconds; // Breyta fyrir sekúndur
 uint16_t timer0 = 0; // Timer0 breyta
+uint16_t timer1 = 0;
 uint8_t q_onoroff = 0; // Breyta sem geymir hvort við kveikjum á útgöngum eða ekki
 // Föll
 
@@ -144,7 +145,7 @@ void setup()
   pinMode(INTERRUPT0,INPUT_PULLUP); // Interrupt pinni til að athuga stöðu á hleðslutæki
   pinMode(INTERRUPT1,INPUT_PULLUP); // Interrupt pinni 2. Ónotað en hugsað til framtíðar.
   pinMode(13,OUTPUT); // fyrir Status LED2
-  digitalWrite(13,HIGH);
+  digitalWrite(13,LOW);
 
   Wire.begin();
   Serial.begin(9600);
@@ -170,43 +171,52 @@ void loop()
   int relay2 = digitalRead(INTERRUPT1); // Lesum INT1 líka
   // Ef Hleðslutækið er í gangi þá kveikjum við ALLTAF á myndavélunum.
   // sem og ef það er dagur
-
-  if((relay == LOW) || (erdagur == 1) || (relay2 == LOW))
+/*
+  if((relay == HIGH) || (erdagur == 1) || (relay2 == LOW))
   {
     q_onoroff = 1; // segjum forriti að það megi kveikja á útgöngum
   }
-
+*/
+if(relay == LOW)
+{
+  q_onoroff = 1;
+}
 // ef það má kveikja á útgöngum
   if(q_onoroff == 1)
   {
     kveikt();
-    timer0 = millis(); // timer0 geymir keyrslutíma AVR gaursins.
+    timer1 = millis(); // timer0 geymir keyrslutíma AVR gaursins.
     // ef við erum búin að kveikja á útgöngum þá könnum við
-    if(timer0 >= keyrslutimi)
+    //delay(5000);
+    if(timer1 - timer0 >= keyrslutimi)
     {
       q_onoroff = 0; //  Segjum forriti að það megi slökkva
+      timer0 = timer1;
     }
   }// fall endar
 
   if(q_onoroff == 0)
   {
     slokkva();
+
+    // og förum aftur að sofa
+    set_sleep_mode (SLEEP_MODE_PWR_DOWN);
+    sleep_enable();
+
+    noInterrupts();
+    // will be called when pin D2 goes low
+    attachInterrupt (0, wakeUp, LOW);
+    EIFR = bit (INTF0);  // clear flag for interrupt 0
+
+    // We are guaranteed that the sleep_cpu call will be done
+    // as the processor executes the next instruction after
+    // interrupts are turned on.
+    interrupts ();  // one cycle
+    sleep_cpu ();   // one cycle
+
   }
 
-  // og förum aftur að sofa
-  set_sleep_mode (SLEEP_MODE_PWR_DOWN);
-  sleep_enable();
 
-  noInterrupts();
-  // will be called when pin D2 goes low
-  attachInterrupt (0, wakeUp, LOW);
-  EIFR = bit (INTF0);  // clear flag for interrupt 0
-
-  // We are guaranteed that the sleep_cpu call will be done
-  // as the processor executes the next instruction after
-  // interrupts are turned on.
-  interrupts ();  // one cycle
-  sleep_cpu ();   // one cycle
 
 // Debugging
 
@@ -229,7 +239,7 @@ while(Wire.available())
   Serial.print(hours); Serial.print(":"); Serial.print(minutes); Serial.print(":"); Serial.println(seconds);
 
   // Er hádegi?
-  er_hadegi();
+  //er_hadegi();
 }
 
 delay(100);
