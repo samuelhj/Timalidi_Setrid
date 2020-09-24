@@ -61,15 +61,29 @@ Kóðasöfn sem þarf:
 // global breytur
 uint8_t manudur = 0; // gildi fyrir mánuðinn. 1 - 12
 uint8_t erdagur = 1; // Er dagur eða ekki? Notað til að ákveða hvort það sé kveikt
+uint16_t keyrslutimi = 600; // Breyta fyrir hve lengi við keyrum, í sekúndum
 uint16_t hours; // Breyta fyrir klukkustundir
 uint16_t minutes; // Breyta fyrir Mínútur
 uint16_t seconds; // Breyta fyrir sekúndur
-
+uint16_t timer0 = 0; // Timer0 breyta
+uint8_t q_onoroff = 0; // Breyta sem geymir hvort við kveikjum á útgöngum eða ekki
 // Föll
 
 void wakeUp();
 int er_dagur();
 void er_hadegi();
+void kveikt(); // Kveikja á útgöngum og stöðu LED
+void slokkva(); // fall til að slökkva á útgöngum og stöðu LED
+
+// Hér byrja undirlykkjur
+
+// Fall til að vekja
+void wakeUp()
+{
+  //Serial.println("Interrupt fired!");
+  sleep_disable(); // Förum úr svefni
+  detachInterrupt(0); // Aftengjum interrupt svo við lendum ekki í lúppu
+}
 
 //Fall til að athuga hvort það sé hádegi. Til að byrja með ætlum við bara að kveikja á útgöngum
 // Þegar það er hádegi, síðar meir verður breytt yfir í dagatal þegar sólarsellan er kominn
@@ -93,12 +107,27 @@ int er_dagur()
 
   return status; // Við skilum til baka ef það er dagur eða nótt
 }
-// Fall til að vekja
-void wakeUp()
+
+// Fall sem kveikir á útgöngum og status díóðum
+void kveikt()
 {
-  //Serial.println("Interrupt fired!");
-  sleep_disable(); // Förum úr svefni
-  detachInterrupt(0); // Aftengjum interrupt svo við lendum ekki í lúppu
+  digitalWrite(Q1,ON);
+  digitalWrite(Q2,ON);
+  digitalWrite(Q3,ON);
+  digitalWrite(Q4,ON);
+  digitalWrite(13,HIGH);
+  delay(500);
+  digitalWrite(13,LOW);
+  delay(500);
+}
+
+void slokkva()
+{
+  digitalWrite(Q1,OFF);
+  digitalWrite(Q2,OFF);
+  digitalWrite(Q3,OFF);
+  digitalWrite(Q4,OFF);
+  digitalWrite(13,LOW);
 }
 //Uppsetningarfall
 void setup()
@@ -132,34 +161,38 @@ void setup()
 
 }
 
+
 //Aðalfall
 void loop()
 {
 
-  int relay = digitalRead(2); // breyta fyrir snertu frá Victron hleðslutækinu
+  int relay = digitalRead(INTERRUPT0); // breyta fyrir snertu frá Victron hleðslutækinu
+  int relay2 = digitalRead(INTERRUPT1); // Lesum INT1 líka
   // Ef Hleðslutækið er í gangi þá kveikjum við ALLTAF á myndavélunum.
   // sem og ef það er dagur
-  if((relay == LOW) && (erdagur == 1))
+
+  if((relay == LOW) || (erdagur == 1) || (relay2 == LOW))
   {
-    digitalWrite(Q1,ON);
-    digitalWrite(Q2,ON);
-    digitalWrite(Q3,ON);
-    digitalWrite(Q4,ON);
-    digitalWrite(13,HIGH);
-    delay(500);
-    digitalWrite(13,LOW);
-    delay(500);
+    q_onoroff = 1; // segjum forriti að það megi kveikja á útgöngum
   }
-  // Ef hleðslutækið slekkur á sér þá slökkvum við á myndavélum sem og
-  // ef það er nótt.
-  if((relay == HIGH) && (erdagur == 0))
+
+// ef það má kveikja á útgöngum
+  if(q_onoroff == 1)
   {
-    digitalWrite(Q1,OFF);
-    digitalWrite(Q2,OFF);
-    digitalWrite(Q3,OFF);
-    digitalWrite(Q4,OFF);
-    digitalWrite(13,LOW);
+    kveikt();
+    timer0 = millis(); // timer0 geymir keyrslutíma AVR gaursins.
+    // ef við erum búin að kveikja á útgöngum þá könnum við
+    if(timer0 >= keyrslutimi)
+    {
+      q_onoroff = 0; //  Segjum forriti að það megi slökkva
+    }
+  }// fall endar
+
+  if(q_onoroff == 0)
+  {
+    slokkva();
   }
+
   // og förum aftur að sofa
   set_sleep_mode (SLEEP_MODE_PWR_DOWN);
   sleep_enable();
