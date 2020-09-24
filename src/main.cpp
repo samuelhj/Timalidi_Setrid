@@ -61,12 +61,13 @@ Kóðasöfn sem þarf:
 // global breytur
 uint8_t manudur = 0; // gildi fyrir mánuðinn. 1 - 12
 uint8_t erdagur = 0; // Er dagur eða ekki? Notað til að ákveða hvort það sé kveikt
-uint16_t keyrslutimi = 600; // Breyta fyrir hve lengi við keyrum, í sekúndum
+uint16_t keyrslutimi = 60000; // Breyta fyrir hve lengi við keyrum, í milli sekúndum
 uint16_t hours; // Breyta fyrir klukkustundir
 uint16_t minutes; // Breyta fyrir Mínútur
 uint16_t seconds; // Breyta fyrir sekúndur
-uint16_t timer0 = 0; // Timer0 breyta
-uint16_t timer1 = 0;
+uint16_t timer0 = 0; // 16 bita teljari 
+uint16_t timer1 = 0; // 16 bita teljari
+uint8_t timer2 = 0; // 8 bita teljari
 uint8_t q_onoroff = 0; // Breyta sem geymir hvort við kveikjum á útgöngum eða ekki
 // Föll
 
@@ -166,6 +167,7 @@ void setup()
 //Aðalfall
 void loop()
 {
+  timer1 = millis(); // timer0 geymir keyrslutíma AVR gaursins.
 
   int relay = digitalRead(INTERRUPT0); // breyta fyrir snertu frá Victron hleðslutækinu
   int relay2 = digitalRead(INTERRUPT1); // Lesum INT1 líka
@@ -185,16 +187,22 @@ if(relay == LOW)
   if(q_onoroff == 1)
   {
     kveikt();
-    timer1 = millis(); // timer0 geymir keyrslutíma AVR gaursins.
+
     // ef við erum búin að kveikja á útgöngum þá könnum við
     //delay(5000);
     if(timer1 - timer0 >= keyrslutimi)
     {
-      q_onoroff = 0; //  Segjum forriti að það megi slökkva
+      //q_onoroff = 0; //  Segjum forriti að það megi slökkva
       timer0 = timer1;
+      timer2 = timer2+1;
+      // ef við höfum farið 10 sinnum í gegnum teljarann timer2
+      if(timer2 > 10)
+      {
+        q_onoroff = 0; // Þá slökkvum við.
+      }
     }
   }// fall endar
-
+/*
   if(q_onoroff == 0)
   {
     slokkva();
@@ -216,7 +224,7 @@ if(relay == LOW)
 
   }
 
-
+*/
 
 // Debugging
 
@@ -242,6 +250,6 @@ while(Wire.available())
   //er_hadegi();
 }
 
-delay(100);
+//delay(100);
 
 }
