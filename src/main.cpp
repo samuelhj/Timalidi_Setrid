@@ -65,7 +65,7 @@ uint16_t keyrslutimi = 60000; // Breyta fyrir hve lengi við keyrum, í milli se
 uint16_t hours; // Breyta fyrir klukkustundir
 uint16_t minutes; // Breyta fyrir Mínútur
 uint16_t seconds; // Breyta fyrir sekúndur
-uint16_t timer0 = 0; // 16 bita teljari 
+uint16_t timer0 = 0; // 16 bita teljari
 uint16_t timer1 = 0; // 16 bita teljari
 uint8_t timer2 = 0; // 8 bita teljari
 uint8_t q_onoroff = 0; // Breyta sem geymir hvort við kveikjum á útgöngum eða ekki
@@ -202,7 +202,7 @@ if(relay == LOW)
       }
     }
   }// fall endar
-/*
+
   if(q_onoroff == 0)
   {
     slokkva();
@@ -224,7 +224,7 @@ if(relay == LOW)
 
   }
 
-*/
+
 
 // Debugging
 
