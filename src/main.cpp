@@ -61,7 +61,7 @@ Kóðasöfn sem þarf:
 // global breytur
 uint8_t manudur = 0; // gildi fyrir mánuðinn. 1 - 12
 uint8_t erdagur = 0; // Er dagur eða ekki? Notað til að ákveða hvort það sé kveikt
-uint16_t keyrslutimi = 60000; // Breyta fyrir hve lengi við keyrum, í milli sekúndum
+uint16_t keyrslutimi = 60000; // Breyta fyrir hve lengi við keyrum
 uint16_t hours; // Breyta fyrir klukkustundir
 uint16_t minutes; // Breyta fyrir Mínútur
 uint16_t seconds; // Breyta fyrir sekúndur
@@ -173,35 +173,32 @@ void loop()
   int relay2 = digitalRead(INTERRUPT1); // Lesum INT1 líka
   // Ef Hleðslutækið er í gangi þá kveikjum við ALLTAF á myndavélunum.
   // sem og ef það er dagur
-/*
-  if((relay == HIGH) || (erdagur == 1) || (relay2 == LOW))
+
+
+  if(relay == LOW)
   {
-    q_onoroff = 1; // segjum forriti að það megi kveikja á útgöngum
+    q_onoroff = 1;
   }
-*/
-if(relay == LOW)
-{
-  q_onoroff = 1;
-}
-// ef það má kveikja á útgöngum
+  // ef það má kveikja á útgöngum
   if(q_onoroff == 1)
   {
     kveikt();
 
-    // ef við erum búin að kveikja á útgöngum þá könnum við
-    //delay(5000);
+      // ef við erum búin að kveikja á útgöngum þá könnum við
     if(timer1 - timer0 >= keyrslutimi)
     {
-      //q_onoroff = 0; //  Segjum forriti að það megi slökkva
-      timer0 = timer1;
-      timer2 = timer2+1;
-      // ef við höfum farið 10 sinnum í gegnum teljarann timer2
-      if(timer2 > 10)
-      {
-        q_onoroff = 0; // Þá slökkvum við.
+        //q_onoroff = 0; //  Segjum forriti að það megi slökkva
+        timer0 = timer1;
+        timer2 = timer2+1;
+        // ef við höfum farið 10 sinnum í gegnum teljarann timer2
+        if(timer2 > 10)
+        {
+          q_onoroff = 0; // Þá slökkvum við.
+          timer2 = 0; // endursetjum teljarann
+        }
       }
-    }
-  }// fall endar
+    }// fall endar
+
 
   if(q_onoroff == 0)
   {
