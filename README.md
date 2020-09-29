@@ -2,6 +2,9 @@
 
 Tímaliði sem stýrist af sólargangingum hvern mánuð. 
 Fjórir forritanlegir MOSFET útgangar.
+Kóðinn (src/main.c) er gefinn út undir BSD 3 leyfi. Hver sem er má nota kóðann í hvaða tilgangi sem er, þarf bara að vísa í uppruna hans.
+Öll kóðasöfn sem eru notuð í þessu verkefni helgast af þeim leyfum sem þau eru gefin út undir og þarf viðkomandi að hafa það í huga.
+
 
 RTC Rás er Chronodot v2.0 http://docs.macetech.com/doku.php/chronodot_v2.0
 
