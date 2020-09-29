@@ -33,8 +33,8 @@ Kóðasöfn sem þarf:
 
   Fá dagatal til að virka
   Status díóður þurfa betri virkni.
+  Alarm til að virkja rás þegar það er hádegi.
   Skoða hvaða möguleika hægt er að draga úr straumnotkun enn frekar.
-
 
 */
 
@@ -42,25 +42,33 @@ Kóðasöfn sem þarf:
 #include <Wire.h>
 #include <Arduino.h>
 #include <RTClib.h> // Lib fyrir real time clock
+//#include <RTC_DS3231.h> // lib fyrir real time clock
+//#include <DS3231.h> //
+#include <DS3232RTC.h> // https://github.com/JChristensen/DS3232RTC
 #include <SPI.h> // SPI samskipti
 #include <avr/sleep.h> // svefn
+//#include <avr/interrupt.h>
+//#include <avr/power.h>
+//#include <avr/io.h>
+
+//RTC_DS3231 RTC;
 
 // fastar
 // Q1-Q4 skilgreindir eftir digital pinnum á Arduino
 // Þetta eru MOSFET rásir sem stýra jaðarbúnaði.
 
-#define Q1 6
-#define Q2 7
-#define Q3 8
-#define Q4 9
+#define Q1 6 // Q1 er stýrt af pinna 6
+#define Q2 7 // Q2 er stýrt af pinna 7
+#define Q3 8 // Q3 er stýrt af pinna 8
+#define Q4 9 // Q4  er stýrt af pinna 9
 
 // Skilgreiningar fyrir Status LED
-#define STATUS_LED_GREEN 4
-#define STATUS_LED_RED 5
+#define STATUS_LED_GREEN 4 // Pinni 4
+#define STATUS_LED_RED 5 // Pinni 5
 
 // pinnar fyrir external interrupt
-#define INTERRUPT0 2
-#define INTERRUPT1 3
+#define INTERRUPT0 2 // Pinni 2
+#define INTERRUPT1 3 // Pinni 3
 
 // HIGH er ON og LOW or OFF
 #define ON HIGH
@@ -69,7 +77,7 @@ Kóðasöfn sem þarf:
 // global breytur
 uint8_t manudur = 0; // gildi fyrir mánuðinn. 1 - 12
 uint8_t erdagur = 0; // Er dagur eða ekki? Notað til að ákveða hvort það sé kveikt
-uint16_t keyrslutimi = 60000; // Breyta fyrir hve lengi við keyrum
+uint16_t keyrslutimi = 6000; // Breyta fyrir hve lengi við keyrum
 uint16_t hours; // Breyta fyrir klukkustundir
 uint16_t minutes; // Breyta fyrir Mínútur
 uint16_t seconds; // Breyta fyrir sekúndur
@@ -79,12 +87,12 @@ uint8_t timer2 = 0; // 8 bita teljari
 uint8_t q_onoroff = 0; // Breyta sem geymir hvort við kveikjum á útgöngum eða ekki
 // Föll
 
-void wakeUp();
-int er_dagur();
-void er_hadegi();
+void wakeUp(); // Fall til að vekja upp AVR
+int er_dagur(); // Fall til að athuga hvort það sé dagur
+void er_hadegi(); // Fall til að athuga hvort það sé hádegi
 void kveikt(); // Kveikja á útgöngum og stöðu LED
 void slokkva(); // fall til að slökkva á útgöngum og stöðu LED
-void writeControlByte();
+void writeControlByte(); // Fall til að stilla RTC Rás.
 
 // Hér byrja undirlykkjur
 
@@ -93,7 +101,8 @@ void wakeUp()
 {
   //Serial.println("Interrupt fired!");
   sleep_disable(); // Förum úr svefni
-  detachInterrupt(0); // Aftengjum interrupt svo við lendum ekki í lúppu
+  detachInterrupt(0); // Aftengjum interrupt0 svo við lendum ekki í lúppu
+  detachInterrupt(1); // Aftengjum interrupt1
 }
 
 //Fall til að athuga hvort það sé hádegi. Til að byrja með ætlum við bara að kveikja á útgöngum
@@ -104,7 +113,7 @@ void er_hadegi()
   // ef kl er 12
   if((hours == 12) && (minutes == 0))
   {
-    digitalWrite(13,ON);
+    digitalWrite(STATUS_LED_GREEN,ON);
   }
 
 }
@@ -115,7 +124,6 @@ int er_dagur()
   uint8_t status = 0; // breyta fyrir útkomu, er dagur eða nótt?
 
   // Þarf að vinna í þessu. Spurning með hvernig sé best að fá mánuðinn frá RTC?
-
   return status; // Við skilum til baka ef það er dagur eða nótt
 }
 
@@ -162,15 +170,12 @@ void setup()
 //Digital pinnar 6-9 eru útgangar
   pinMode(STATUS_LED_GREEN,OUTPUT); // Status LED
   pinMode(STATUS_LED_RED,OUTPUT); // Status LED
-  pinMode(Q1, OUTPUT); //
-  pinMode(Q2,OUTPUT);
-  pinMode(Q3,OUTPUT);
-  pinMode(Q4,OUTPUT);
-  pinMode(10,OUTPUT); // Status díóða fyrir test (Þetta verður fjarlægt)
+  pinMode(Q1,OUTPUT); // Útgangur 1
+  pinMode(Q2,OUTPUT); // Útgangur 2
+  pinMode(Q3,OUTPUT); // Útgangur 3
+  pinMode(Q4,OUTPUT); // Útgangur 4
   pinMode(INTERRUPT0,INPUT_PULLUP); // Interrupt pinni til að athuga stöðu á hleðslutæki
-  pinMode(INTERRUPT1,INPUT_PULLUP); // Interrupt pinni 2. Ónotað en hugsað til framtíðar.
-  pinMode(13,OUTPUT); // fyrir Status LED2
-  //digitalWrite(13,LOW);
+  pinMode(INTERRUPT1,INPUT_PULLUP); // Interrupt pinni 2, notað til að ræsa AVR til að ath tímann
 
   Wire.begin();
   Serial.begin(9600);
@@ -185,28 +190,49 @@ void setup()
   Wire.write(0b00011100); // write register bitmap, bit 7 is /EOSC
   Wire.endTransmission();
 
-  //Slökkvum á 32kHz útgangi til að spara orku.
- //byte temp_buffer = temp_buffer & 0b11110111;
- //writeControlByte(temp_buffer, 1);
 
-// Slökkvum á SQW/INT pinna þar sem við notum hann ekki.
- //temp_buffer =   0b01111111;
- //writeControlByte(temp_buffer, 0);
+  // Alarm 1
+  // Hreinsum gildi
+  RTC.setAlarm(ALM1_MATCH_DATE, 0, 0, 0, 1);
+  RTC.setAlarm(ALM2_MATCH_DATE, 0, 0, 0, 1);
+  RTC.alarm(ALARM_1);
+  RTC.alarm(ALARM_2);
+  RTC.alarmInterrupt(ALARM_1, false);
+  RTC.alarmInterrupt(ALARM_2, false);
+  RTC.squareWave(SQWAVE_NONE);
 
-}
+  // set the RTC time and date to the compile time
+  //RTC.set(compileTime());
+
+  //RTC.setAlarm(alarmType, seconds, minutes, hours, dayOrDate);
+  RTC.setAlarm(ALM1_MATCH_MINUTES, 0, 1, 0, 0); // 5 mínútna fresti fyrir test
+  // clear the alarm flag
+  RTC.alarm(ALARM_1);
+  // enable interrupt output for Alarm 1
+   RTC.alarmInterrupt(ALARM_1, true);
+
+} // void setup() endar
 
 
 //Aðalfall
 void loop()
 {
-  timer1 = millis(); // timer0 geymir keyrslutíma AVR gaursins.
+
+  timer1 = millis(); // timer1 geymir keyrslutíma AVR gaursins.
 
   int relay = digitalRead(INTERRUPT0); // breyta fyrir snertu frá Victron hleðslutækinu
-  int relay2 = digitalRead(INTERRUPT1); // Lesum INT1 líka
+  int relay2 = digitalRead(INTERRUPT1); // Breyta fyrir SQW/INT frá RTC rás.
+
+  // RTC rás vekur upp AVR.
+  // AVR athugar fyrst í sinn bara hvort það sé að nálgast hádegi.
+  // Ef það er hádegi, þá keyrum við upp rásina og ræsum myndavélar og router.
+  if(relay2 == LOW)
+  {
+    //Hér lesum við tímann og athugum hvað kl er.
+    q_onoroff = 1; // test
+  }
+
   // Ef Hleðslutækið er í gangi þá kveikjum við ALLTAF á myndavélunum.
-  // sem og ef það er dagur
-
-
   if(relay == LOW)
   {
     q_onoroff = 1;
@@ -214,75 +240,85 @@ void loop()
   // ef það má kveikja á útgöngum
   if(q_onoroff == 1)
   {
-    kveikt();
+    digitalWrite(Q1,ON); // Ræsum Q1 fyrir router
+    digitalWrite(Q2,ON); // Ræsum Q2 fyrir myndavél A
+    digitalWrite(Q3,ON); // Ræsum Q3 fyrir Myndavél B
 
-      // ef við erum búin að kveikja á útgöngum þá könnum við
+    // ef við erum búin að kveikja á útgöngum þá könnum við
     if(timer1 - timer0 >= keyrslutimi)
     {
         //q_onoroff = 0; //  Segjum forriti að það megi slökkva
         timer0 = timer1;
         timer2 = timer2+1;
         // ef við höfum farið 10 sinnum í gegnum teljarann timer2
+        // sem eru 10 mínútur. Það ætti að gefa Myndavél og router tíma til að ræsa sig upp
+        // taka mynd, og senda frá sér. Gæti þurft að stilla þetta eitthvað.
         if(timer2 > 10)
         {
           q_onoroff = 0; // Þá slökkvum við.
           timer2 = 0; // endursetjum teljarann
+
         }
-      }
-    }// fall endar
+    } // Fall fyrir teljara endar
+
+      // Debugging
+
+      // send request to receive data starting at register 0
+      Wire.beginTransmission(0x68); // 0x68 is DS3231 device address
+      Wire.write((byte)0); // start at register 0
+      Wire.endTransmission();
+      Wire.requestFrom(0x68, 3); // request three bytes (seconds, minutes, hours)
+
+      while(Wire.available())
+      {
+        // blikkum status leddu tvisvar snöggt
+        for(int a=0;a<3;a++)
+        {
+          digitalWrite(STATUS_LED_GREEN,ON); // kveikjum á status leddu
+          delay(50);
+          digitalWrite(STATUS_LED_GREEN,OFF);// slökkvum á status leddu
+          delay(500);
+        }
 
 
+        seconds = Wire.read(); // get seconds
+        minutes = Wire.read(); // get minutes
+        hours = Wire.read();   // get hours
+
+        seconds = (((seconds & 0b11110000)>>4)*10 + (seconds & 0b00001111)); // convert BCD to decimal
+        minutes = (((minutes & 0b11110000)>>4)*10 + (minutes & 0b00001111)); // convert BCD to decimal
+        hours = (((hours & 0b00100000)>>5)*20 + ((hours & 0b00010000)>>4)*10 + (hours & 0b00001111)); // convert BCD to decimal (assume 24 hour mode)
+
+        Serial.print(hours); Serial.print(":"); Serial.print(minutes); Serial.print(":"); Serial.println(seconds);
+      }// RTC lestur endar
+
+    }// Útgangar ON fall endar
+
+    // Ef það á að vera slökkt á öllum útgöngum
   if(q_onoroff == 0)
   {
     slokkva();
     digitalWrite(STATUS_LED_RED,ON);
     delay(100);
     digitalWrite(STATUS_LED_RED,OFF);
-    
+
     // og förum aftur að sofa
     set_sleep_mode (SLEEP_MODE_PWR_DOWN);
     sleep_enable();
 
     noInterrupts();
     // will be called when pin D2 goes low
-    attachInterrupt (0, wakeUp, LOW);
+    attachInterrupt (0, wakeUp, LOW); // INTERRUPT0
+    attachInterrupt(1, wakeUp, LOW);  // INTERRUPT1
     EIFR = bit (INTF0);  // clear flag for interrupt 0
+    EIFR = bit (INTF1); // Hreinsum flagg fyrir INTERRUPT1
 
     // We are guaranteed that the sleep_cpu call will be done
     // as the processor executes the next instruction after
     // interrupts are turned on.
     interrupts ();  // one cycle
     sleep_cpu ();   // one cycle
+  } // Fall fyrir svefn og OFF á útgöngum endar
 
 
-  }
-
-
-
-// Debugging
-
-  // send request to receive data starting at register 0
-Wire.beginTransmission(0x68); // 0x68 is DS3231 device address
-Wire.write((byte)0); // start at register 0
-Wire.endTransmission();
-Wire.requestFrom(0x68, 3); // request three bytes (seconds, minutes, hours)
-
-while(Wire.available())
-{
-  seconds = Wire.read(); // get seconds
-  minutes = Wire.read(); // get minutes
-  hours = Wire.read();   // get hours
-
-  seconds = (((seconds & 0b11110000)>>4)*10 + (seconds & 0b00001111)); // convert BCD to decimal
-  minutes = (((minutes & 0b11110000)>>4)*10 + (minutes & 0b00001111)); // convert BCD to decimal
-  hours = (((hours & 0b00100000)>>5)*20 + ((hours & 0b00010000)>>4)*10 + (hours & 0b00001111)); // convert BCD to decimal (assume 24 hour mode)
-
-  Serial.print(hours); Serial.print(":"); Serial.print(minutes); Serial.print(":"); Serial.println(seconds);
-
-  // Er hádegi?
-  //er_hadegi();
-}
-
-//delay(100);
-
-}
+} // void loop() endar
