@@ -28,6 +28,14 @@ Kóðasöfn sem þarf:
   Október   08:30 - 18:00
   Nóvember  10:00 - 16:30
   Desember  11:30 - 15:30
+
+  Listi yfir þekkt vandamál og viðbætur sem þarf að bæta við
+
+  Fá dagatal til að virka
+  Status díóður þurfa betri virkni.
+  Skoða hvaða möguleika hægt er að draga úr straumnotkun enn frekar.
+
+
 */
 
 
@@ -76,6 +84,7 @@ int er_dagur();
 void er_hadegi();
 void kveikt(); // Kveikja á útgöngum og stöðu LED
 void slokkva(); // fall til að slökkva á útgöngum og stöðu LED
+void writeControlByte();
 
 // Hér byrja undirlykkjur
 
@@ -117,10 +126,10 @@ void kveikt()
   digitalWrite(Q2,ON);
   digitalWrite(Q3,ON);
   digitalWrite(Q4,ON);
-  digitalWrite(13,HIGH);
-  delay(500);
-  digitalWrite(13,LOW);
-  delay(500);
+  digitalWrite(STATUS_LED_GREEN,HIGH);
+  delay(100);
+  digitalWrite(STATUS_LED_GREEN,LOW);
+  delay(1000);
 }
 
 void slokkva()
@@ -131,6 +140,21 @@ void slokkva()
   digitalWrite(Q4,OFF);
   digitalWrite(13,LOW);
 }
+
+void writeControlByte(byte control, bool which) {  // Set DS3121 RTC control bytes
+   // Write the selected control byte.
+   // which=false -> 0x0e, true->0x0f.
+   Wire.beginTransmission(0x68);
+   if (which) {
+      Wire.write(0x0f);
+   } else {
+      Wire.write(0x0e);
+   }
+   Wire.write(control);
+   Wire.endTransmission();
+}
+
+
 //Uppsetningarfall
 void setup()
 {
@@ -146,7 +170,7 @@ void setup()
   pinMode(INTERRUPT0,INPUT_PULLUP); // Interrupt pinni til að athuga stöðu á hleðslutæki
   pinMode(INTERRUPT1,INPUT_PULLUP); // Interrupt pinni 2. Ónotað en hugsað til framtíðar.
   pinMode(13,OUTPUT); // fyrir Status LED2
-  digitalWrite(13,LOW);
+  //digitalWrite(13,LOW);
 
   Wire.begin();
   Serial.begin(9600);
@@ -160,6 +184,14 @@ void setup()
   Wire.write(0x0E); // select register
   Wire.write(0b00011100); // write register bitmap, bit 7 is /EOSC
   Wire.endTransmission();
+
+  //Slökkvum á 32kHz útgangi til að spara orku.
+ //byte temp_buffer = temp_buffer & 0b11110111;
+ //writeControlByte(temp_buffer, 1);
+
+// Slökkvum á SQW/INT pinna þar sem við notum hann ekki.
+ //temp_buffer =   0b01111111;
+ //writeControlByte(temp_buffer, 0);
 
 }
 
@@ -203,7 +235,10 @@ void loop()
   if(q_onoroff == 0)
   {
     slokkva();
-
+    digitalWrite(STATUS_LED_RED,ON);
+    delay(100);
+    digitalWrite(STATUS_LED_RED,OFF);
+    
     // og förum aftur að sofa
     set_sleep_mode (SLEEP_MODE_PWR_DOWN);
     sleep_enable();
@@ -218,6 +253,7 @@ void loop()
     // interrupts are turned on.
     interrupts ();  // one cycle
     sleep_cpu ();   // one cycle
+
 
   }
 
