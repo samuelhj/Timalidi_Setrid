@@ -203,7 +203,8 @@ void loop()
 {
 
   // check to see if the INT/SQW pin is low, i.e. an alarm has occurred
-  // Þetta þarf smá vinnu 
+  // Þetta þarf smá vinnu
+  // ekki fjarlægja þetta, það brýtur allt. Ég veit ekki afhverju. 
 if ( !digitalRead(INTERRUPT1) )
 {
   RTC.alarm(ALARM_1);    // reset the alarm flag
