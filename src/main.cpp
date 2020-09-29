@@ -88,6 +88,7 @@ uint8_t q_onoroff = 0; // Breyta sem geymir hvort við kveikjum á útgöngum e�
 // Föll
 
 void wakeUp(); // Fall til að vekja upp AVR
+void wakeUp2(); // Ef RTC vekur AVR
 int er_dagur(); // Fall til að athuga hvort það sé dagur
 void er_hadegi(); // Fall til að athuga hvort það sé hádegi
 void kveikt(); // Kveikja á útgöngum og stöðu LED
@@ -96,13 +97,23 @@ void writeControlByte(); // Fall til að stilla RTC Rás.
 
 // Hér byrja undirlykkjur
 
-// Fall til að vekja
+// Fall til að vekja ef Ljósavél fer í gang
 void wakeUp()
 {
-  //Serial.println("Interrupt fired!");
+  q_onoroff = 1; // Segjum AVR að keyra upp útganga
   sleep_disable(); // Förum úr svefni
   detachInterrupt(0); // Aftengjum interrupt0 svo við lendum ekki í lúppu
   detachInterrupt(1); // Aftengjum interrupt1
+}
+
+// Fall til að vekja upp ef RTC rás gefur merki
+void wakeUp2()
+{
+  //Serial.println("Interrupt fired!");
+  sleep_disable(); // Förum úr svefni
+  detachInterrupt(1); // Aftengjum interrupt1
+  q_onoroff = 1; // Segjum AVR að keyra upp útganga
+  RTC.alarm(ALARM_1);    // reset the alarm flag
 }
 
 //Fall til að athuga hvort það sé hádegi. Til að byrja með ætlum við bara að kveikja á útgöngum
@@ -203,24 +214,37 @@ void setup()
 
   // set the RTC time and date to the compile time
   //RTC.set(compileTime());
-
+  // enable interrupt output for Alarm 1
+  RTC.alarmInterrupt(ALARM_1, true);
   //RTC.setAlarm(alarmType, seconds, minutes, hours, dayOrDate);
-  RTC.setAlarm(ALM1_MATCH_MINUTES, 0, 1, 0, 0); // 5 mínútna fresti fyrir test
+  RTC.setAlarm(ALM1_MATCH_SECONDS, 5, 0, 0, 0); // 5 mínútna fresti fyrir test
   // clear the alarm flag
   RTC.alarm(ALARM_1);
-  // enable interrupt output for Alarm 1
-   RTC.alarmInterrupt(ALARM_1, true);
+
 
 } // void setup() endar
+
 
 
 //Aðalfall
 void loop()
 {
 
+  // check to see if the INT/SQW pin is low, i.e. an alarm has occurred
+if ( !digitalRead(INTERRUPT1) )
+{
+
+    //Serial << millis() << " ALARM_1 ";
+    //printDateTime(RTC.get());
+    //Serial << endl;
+    digitalWrite(STATUS_LED_GREEN,ON);
+    digitalWrite(STATUS_LED_RED,ON); //test
+}
+
   timer1 = millis(); // timer1 geymir keyrslutíma AVR gaursins.
 
   int relay = digitalRead(INTERRUPT0); // breyta fyrir snertu frá Victron hleðslutækinu
+/*
   int relay2 = digitalRead(INTERRUPT1); // Breyta fyrir SQW/INT frá RTC rás.
 
   // RTC rás vekur upp AVR.
@@ -236,7 +260,8 @@ void loop()
   if(relay == LOW)
   {
     q_onoroff = 1;
-  }
+  }*/
+  
   // ef það má kveikja á útgöngum
   if(q_onoroff == 1)
   {
@@ -309,7 +334,7 @@ void loop()
     noInterrupts();
     // will be called when pin D2 goes low
     attachInterrupt (0, wakeUp, LOW); // INTERRUPT0
-    attachInterrupt(1, wakeUp, LOW);  // INTERRUPT1
+    attachInterrupt(1, wakeUp2, FALLING);  // INTERRUPT1
     EIFR = bit (INTF0);  // clear flag for interrupt 0
     EIFR = bit (INTF1); // Hreinsum flagg fyrir INTERRUPT1
 
