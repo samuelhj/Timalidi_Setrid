@@ -11,4 +11,9 @@ Höfundur er Samúel Þór Hjaltalín
 
 Þetta verkefni er langt frá því að vera klárað! Senda má fyrirspurnir á samuel@ulfr.net 
 
+Library sem þetta forrit notar.
+
+Fyrir RTC:
+https://github.com/JChristensen/DS3232RTC
+
 
