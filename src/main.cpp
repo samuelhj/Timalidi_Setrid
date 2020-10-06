@@ -144,24 +144,26 @@ void slokkva()
   digitalWrite(Q3,OFF);
   digitalWrite(Q4,OFF);
   digitalWrite(13,LOW);
+  digitalWrite(STATUS_LED_GREEN,OFF);
+  digitalWrite(STATUS_LED_RED,OFF);
 }
 
 //Uppsetningarfall
 void setup()
 {
-
 //Digital pinnar 6-9 eru útgangar
   pinMode(STATUS_LED_GREEN,OUTPUT); // Status LED
   pinMode(STATUS_LED_RED,OUTPUT); // Status LED
+  pinMode(13,OUTPUT); // status led fyrir debugging
   pinMode(Q1,OUTPUT); // Útgangur 1
   pinMode(Q2,OUTPUT); // Útgangur 2
   pinMode(Q3,OUTPUT); // Útgangur 3
   pinMode(Q4,OUTPUT); // Útgangur 4
   pinMode(INTERRUPT0,INPUT_PULLUP); // Interrupt pinni til að athuga stöðu á hleðslutæki
   pinMode(INTERRUPT1,INPUT_PULLUP); // Interrupt pinni 2, notað til að ræsa AVR til að ath tímann
-
-  Wire.begin();
-  Serial.begin(9600);
+  slokkva(); // Gætum þess að allir útgangar sé slökktir
+  Wire.begin(); // Hefjum I2C samskipti
+  Serial.begin(9600); // Hefjum serial samskipti
 
   // clear /EOSC bit
   // Sometimes necessary to ensure that the clock
@@ -173,6 +175,10 @@ void setup()
   Wire.write(0b00011100); // write register bitmap, bit 7 is /EOSC
   Wire.endTransmission();
 
+// Til að stilla klukku, þarf bara að gera þegar skipt er um lithium rafhlöðu
+// klst mínútur sekúndur dagur mánuður ár
+//  setTime(18, 53, 00, 6, 10, 2020);   //set the system time to 23h31m30s on 13Feb2009
+//  RTC.set(now());                     //set the RTC from the system time
 
   // Alarm 1
   // Hreinsum gildi
@@ -182,11 +188,9 @@ void setup()
   RTC.alarm(ALARM_2);
   RTC.alarmInterrupt(ALARM_1, false);
   RTC.alarmInterrupt(ALARM_2, false);
-  RTC.squareWave(SQWAVE_NONE);
+  RTC.squareWave(SQWAVE_NONE); // Við viljum að SQW sé óvirkur nema fyrir INT1
 
-  // set the RTC time and date to the compile time
-  //RTC.set(compileTime());
-  // enable interrupt output for Alarm 1
+  // Virkjum interrupt út af RTC.
   RTC.alarmInterrupt(ALARM_1, true);
   //RTC.setAlarm(alarmType, seconds, minutes, hours, dayOrDate);
   RTC.setAlarm(ALM1_MATCH_HOURS, 0, 0, 0, 12); // Klukkan 12.
@@ -204,7 +208,7 @@ void loop()
 
   // check to see if the INT/SQW pin is low, i.e. an alarm has occurred
   // Þetta þarf smá vinnu
-  // ekki fjarlægja þetta, það brýtur allt. Ég veit ekki afhverju. 
+  // ekki fjarlægja þetta, það brýtur allt. Ég veit ekki afhverju.
 if ( !digitalRead(INTERRUPT1) )
 {
   RTC.alarm(ALARM_1);    // reset the alarm flag
@@ -212,13 +216,12 @@ if ( !digitalRead(INTERRUPT1) )
     //printDateTime(RTC.get());
     //Serial << endl;
     digitalWrite(STATUS_LED_GREEN,ON);
-    digitalWrite(STATUS_LED_RED,ON); //test
+    digitalWrite(STATUS_LED_RED,ON);
 }
 
   timer1 = millis(); // timer1 geymir keyrslutíma AVR gaursins.
 
   int relay = digitalRead(INTERRUPT0); // breyta fyrir snertu frá Victron hleðslutækinu
-
   int relay2 = digitalRead(INTERRUPT1); // Breyta fyrir SQW/INT frá RTC rás.
 
   // RTC rás vekur upp AVR.
@@ -241,6 +244,7 @@ if ( !digitalRead(INTERRUPT1) )
     digitalWrite(Q1,ON); // Ræsum Q1 fyrir router
     digitalWrite(Q2,ON); // Ræsum Q2 fyrir myndavél A
     digitalWrite(Q3,ON); // Ræsum Q3 fyrir Myndavél B
+    digitalWrite(13,ON);
 
     // ef við erum búin að kveikja á útgöngum þá könnum við
     if(timer1 - timer0 >= keyrslutimi)
@@ -251,11 +255,12 @@ if ( !digitalRead(INTERRUPT1) )
         // ef við höfum farið 10 sinnum í gegnum teljarann timer2
         // sem eru 10 mínútur. Það ætti að gefa Myndavél og router tíma til að ræsa sig upp
         // taka mynd, og senda frá sér. Gæti þurft að stilla þetta eitthvað.
+        // breytan keyrslutimi er sett í 60s og keyrir 10 sinnum.
+        // til að lengja má breyta 10 yfir í eitthvað annað.
         if(timer2 > 10)
         {
           q_onoroff = 0; // Þá slökkvum við.
           timer2 = 0; // endursetjum teljarann
-
         }
     } // Fall fyrir teljara endar
 
@@ -267,9 +272,11 @@ if ( !digitalRead(INTERRUPT1) )
       Wire.endTransmission();
       Wire.requestFrom(0x68, 3); // request three bytes (seconds, minutes, hours)
 
+      // Á meðan I2C samskipti eru á milli RTC og AVR.
       while(Wire.available())
       {
         // blikkum status leddu tvisvar snöggt
+        // Þarf að betrumbæta þetta 
         for(int a=0;a<3;a++)
         {
           digitalWrite(STATUS_LED_GREEN,ON); // kveikjum á status leddu
@@ -295,8 +302,8 @@ if ( !digitalRead(INTERRUPT1) )
     // Ef það á að vera slökkt á öllum útgöngum
   if(q_onoroff == 0)
   {
-    slokkva();
-    digitalWrite(STATUS_LED_RED,ON);
+    slokkva(); // Verum viss um að allir útgangar séu slökktir.
+    digitalWrite(STATUS_LED_RED,ON); // Blikkum rauðu díóðu einusinni til að sýna að við erum farin í svefn
     delay(100);
     digitalWrite(STATUS_LED_RED,OFF);
 
@@ -305,7 +312,7 @@ if ( !digitalRead(INTERRUPT1) )
     sleep_enable();
 
     noInterrupts();
-    // will be called when pin D2 goes low
+    // Tengjum INT0 og INT1 til að kalla á wakeUp föllin.
     attachInterrupt (0, wakeUp, LOW); // INTERRUPT0
     attachInterrupt(1, wakeUp2, FALLING);  // INTERRUPT1
     EIFR = bit (INTF0);  // clear flag for interrupt 0
