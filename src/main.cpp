@@ -193,11 +193,10 @@ void setup()
   // Virkjum interrupt út af RTC.
   RTC.alarmInterrupt(ALARM_1, true);
   //RTC.setAlarm(alarmType, seconds, minutes, hours, dayOrDate);
-  RTC.setAlarm(ALM1_MATCH_HOURS, 0, 0, 0, 12); // Klukkan 12.
+  RTC.setAlarm(ALM1_MATCH_HOURS, 0, 0, 12, 0); // Klukkan 12.
+  //RTC.setAlarm(ALM1_MATCH_SECONDS, 30, 0, 0, 0); // test
   // clear the alarm flag
   RTC.alarm(ALARM_1);
-
-
 } // void setup() endar
 
 
@@ -276,7 +275,7 @@ if ( !digitalRead(INTERRUPT1) )
       while(Wire.available())
       {
         // blikkum status leddu tvisvar snöggt
-        // Þarf að betrumbæta þetta 
+        // Þarf að betrumbæta þetta
         for(int a=0;a<3;a++)
         {
           digitalWrite(STATUS_LED_GREEN,ON); // kveikjum á status leddu
