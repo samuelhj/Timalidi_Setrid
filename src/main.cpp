@@ -12,6 +12,7 @@ RTC rásin er Chronodot v2.0 http://docs.macetech.com/doku.php/chronodot_v2.0
 Kóðasöfn sem þarf:
   https://github.com/mizraith/RTClib
   https://github.com/jarzebski/Arduino-DS3231
+  https://github.com/JChristensen/DS3232RTC
 
 
 
@@ -33,8 +34,9 @@ Kóðasöfn sem þarf:
 
   Fá dagatal til að virka
   Status díóður þurfa betri virkni.
-  Alarm til að virkja rás þegar það er hádegi.
   Skoða hvaða möguleika hægt er að draga úr straumnotkun enn frekar.
+
+  Virkni í dag er að rásin ræsir sig á hádegi, en er stillanlegt.
 
 */
 
